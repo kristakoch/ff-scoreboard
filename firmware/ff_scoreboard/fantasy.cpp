@@ -12,6 +12,7 @@ int     g_teamCount = 0;
 Matchup g_matchups[MAX_MATCHUPS];
 int     g_matchupCount = 0;
 int     g_currentMatchupPeriod = 0;
+int     g_dataGen = 0;
 
 // Measured against the live 2026 league (14 teams, 98 schedule rows):
 //   view=mTeam          ~ 50 KB
@@ -77,6 +78,7 @@ ErrorState fantasyFetchTeams() {
 
   memcpy(g_teams, tmp, sizeof(Team) * n);
   g_teamCount = n;
+  g_dataGen++;
   return ErrorState::OK;
 }
 
@@ -134,6 +136,7 @@ ErrorState fantasyFetchMatchups() {
   g_currentMatchupPeriod = period;
   g_matchupCount = n;
   memcpy(g_matchups, tmp, sizeof(Matchup) * n);
+  g_dataGen++;
   return ErrorState::OK;  // n == 0 is valid (e.g. between periods), still "last good"
 }
 

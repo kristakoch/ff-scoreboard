@@ -11,6 +11,10 @@ extern Matchup g_matchups[MAX_MATCHUPS];
 extern int     g_matchupCount;
 extern int     g_currentMatchupPeriod;
 
+// Incremented on every successful fetch that (re)writes the cached data, so the
+// display layer can repaint only when the shown content has actually changed.
+extern int     g_dataGen;
+
 // Fetch the team list once at boot and cache it. The season's teams are static.
 // Also caches g_currentMatchupPeriod from status.currentMatchupPeriod.
 ErrorState fantasyFetchTeams();

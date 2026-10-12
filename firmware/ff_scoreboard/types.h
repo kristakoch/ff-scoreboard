@@ -10,13 +10,9 @@
 // Fixed caps keep everything statically sized (no heap churn on refresh).
 #define MAX_TEAMS     20     // league currently has 14
 #define MAX_MATCHUPS  16     // 14 teams -> 7 matchups per period
-#define MAX_GAMES     20     // per sport
-#define MAX_SPORTS    4      // NFL, MLB, NHL, NBA
 
 #define MAX_ABBREV    8
 #define MAX_NAME      48
-#define MAX_STATE     8      // "pre" / "in" / "post"
-#define MAX_STATUS    28     // short status, e.g. "Final", "2:00 - 2nd"
 
 // Error states returned by every fetch helper. On a non-OK result the previous
 // good data is intentionally left in place, so callers can keep rendering.
@@ -46,25 +42,4 @@ struct Matchup {
   float   homeWinPct;   // ESPN's estimated win probability (0..1) per side
   float   awayWinPct;
   bool    live;    // true while games are in progress (totalPointsLive is set)
-};
-
-// ---------------------------- Real sports ------------------------------------
-struct GameTeam {
-  char     abbrev[MAX_ABBREV];
-  uint32_t color;          // 0xRRGGBB (ESPN sends 6 hex digits, no leading '#')
-  int32_t  score;
-};
-
-struct Game {
-  GameTeam home;
-  GameTeam away;
-  char     state[MAX_STATE];    // "pre" | "in" | "post"
-  char     status[MAX_STATUS];  // short status string, e.g. "Final", "2:00 - 2nd"
-};
-
-struct SportBoard {
-  const char* name;             // "NFL", "MLB", ...
-  Game        games[MAX_GAMES];
-  int         count;            // games currently stored
-  ErrorState  err;              // result of the most recent fetch
 };

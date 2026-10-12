@@ -1,6 +1,6 @@
 #pragma once
 // -----------------------------------------------------------------------------
-// http_json.h - one HTTPS helper shared by fantasy.cpp and scoreboard.cpp.
+// http_json.h - one HTTPS helper shared by the fantasy fetches.
 //
 // Key behaviour:
 //   * Requests use HTTP/1.1 with Connection: close and an identity-preferred

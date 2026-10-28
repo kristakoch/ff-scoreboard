@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="IMG_2812.jpg" alt="ESP32 fantasy football LED scoreboard showing a matchup" width="600">
+</p>
+
 # Fantasy Football LED Scoreboard
 
 An ESP32 firmware for a 64x32 HUB75 LED matrix that shows your ESPN fantasy

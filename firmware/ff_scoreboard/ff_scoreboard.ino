@@ -3,8 +3,8 @@
 //
 // Parts:
 //   1. ESPN fantasy football: team list cached at boot, current-period matchups
-//      polled every POLL_INTERVAL_MS.
-//   2. Display: a single fixed fantasy view (display.cpp) - dad's team left,
+//      polled every POLL_INTERVAL_MS. The season year comes from NTP.
+//   2. Display: a single fixed fantasy view (display.cpp) - your team left,
 //      opponent right, score with a dotted win-probability bar underneath.
 //
 // Data is printed to Serial each poll. The display only repaints when the
@@ -25,6 +25,7 @@
 //     mMatchup it does NOT include teams[], so teams are fetched once via mTeam.
 // -----------------------------------------------------------------------------
 #include <WiFi.h>
+#include <time.h>
 
 #include "config.h"
 #include "types.h"
@@ -56,6 +57,9 @@ static void printTeams() {
 }
 
 static void printFantasy() {
+  const Team* myTeam = fantasyTeamById(TEAM_ID);
+  const char* myTag = (myTeam && myTeam->abbrev[0]) ? myTeam->abbrev : "TEAM";
+
   Serial.printf("  Fantasy matchups, period %d (%d games):\n",
                 g_currentMatchupPeriod, g_matchupCount);
   for (int i = 0; i < g_matchupCount; i++) {
@@ -67,17 +71,47 @@ static void printFantasy() {
                   m.homeScore,
                   m.awayScore,
                   at ? at->abbrev : "?",
-                  (m.homeId == TEAM_ID || m.awayId == TEAM_ID) ? "   <-- TAK" : "");
+                  (m.homeId == TEAM_ID || m.awayId == TEAM_ID) ? "   <-- your team" : "");
   }
 
-  const Matchup* mine = fantasyMatchupForTeam(TEAM_ID);
-  if (mine) {
-    const Team* opp = fantasyTeamById(mine->homeId == TEAM_ID ? mine->awayId : mine->homeId);
-    Serial.printf("  TAK is %s vs %s\n",
-                  mine->homeId == TEAM_ID ? "HOME" : "AWAY",
+  const Matchup* matchup = fantasyMatchupForTeam(TEAM_ID);
+  if (matchup) {
+    const Team* opp = fantasyTeamById(matchup->homeId == TEAM_ID ? matchup->awayId : matchup->homeId);
+    Serial.printf("  %s is %s vs %s\n",
+                  myTag,
+                  matchup->homeId == TEAM_ID ? "HOME" : "AWAY",
                   opp ? opp->abbrev : "?");
   } else {
-    Serial.println("  TAK has no matchup this period");
+    Serial.printf("  %s has no matchup this period\n", myTag);
+  }
+}
+
+// ------------------------------ clock sync ------------------------------------
+// The ESP32 has no battery-backed clock. Sync it once via NTP after Wi-Fi joins
+// so fantasySeasonYear() can pick the current NFL season automatically.
+static void syncClock() {
+  static bool started = false;
+  if (started) return;
+  started = true;
+
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+  Serial.print("[time] waiting for NTP");
+  unsigned long start = millis();
+  while (time(nullptr) <= 1700000000 && millis() - start < 5000) {
+    Serial.print('.');
+    vTaskDelay(pdMS_TO_TICKS(250));
+  }
+  Serial.println();
+
+  time_t now = time(nullptr);
+  struct tm t;
+  if (now > 1700000000 && gmtime_r(&now, &t)) {
+    Serial.printf("[time] clock synced: %04d-%02d-%02d UTC, season %d\n",
+                  t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
+                  fantasySeasonYear());
+  } else {
+    Serial.printf("[time] NTP unavailable; using build year for season %d\n",
+                  fantasySeasonYear());
   }
 }
 
@@ -113,7 +147,23 @@ void fetchTask(void* arg) {
       continue;
     }
 
-    // Joined: cache the static team list once.
+    // Joined: the first fetch needs the season year, which comes from the clock.
+    syncClock();
+
+    // If NTP was unavailable at boot and syncs later, the season can change.
+    // Drop the cached data so the team list and matchups are fetched for the
+    // correct season.
+    static int lastSeason = 0;
+    int season = fantasySeasonYear();
+    if (lastSeason && season != lastSeason) {
+      Serial.printf("[fantasy] season changed %d -> %d; refreshing data\n",
+                    lastSeason, season);
+      g_teamCount = 0;
+      g_matchupCount = 0;
+    }
+    lastSeason = season;
+
+    // Cache the static team list once.
     if (!g_teamCount) {
       Serial.println("\n[fantasy] initial team fetch (once)");
       printHeap("before team fetch");
@@ -146,8 +196,8 @@ void setup() {
 
   Serial.println();
   Serial.println("ESPN scoreboard data layer");
-  Serial.printf("League %ld | team %d | season %d\n",
-                (long)LEAGUE_ID, TEAM_ID, SEASON);
+  Serial.printf("League %ld | team %d | season: auto\n",
+                (long)LEAGUE_ID, TEAM_ID);
   Serial.printf("Free heap at boot: %u bytes\n", ESP.getFreeHeap());
   Serial.printf("Display panel: %s\n", displayReady() ? "ready" : "unavailable");
 

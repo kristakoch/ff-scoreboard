@@ -3,7 +3,8 @@
 //
 // One fixed view, no rotation: an old-fashioned LED-basketball scoreboard.
 //   * Whole board is a solid dark-green "felt" background (no border).
-//   * Dad's team (TAK) LEFT, opponent RIGHT; white names (Org_01) on TOP.
+//   * Your team (TEAM_ID from config.h) LEFT, opponent RIGHT; white names
+//     (Org_01) on TOP.
 //   * The numbers sit on BLACK LED panels - red three-cell seven-segment
 //     displays, right-aligned, only the lit bars draw (no dim outlines).
 //   * A dotted GOLD->purple win-probability bar under the scores: the gold
@@ -160,6 +161,16 @@ static void drawFootball(unsigned long frame) {
 }
 
 // ---------------------------- fantasy scoreboard -------------------------------
+// The left-hand abbreviation comes from ESPN's team list, so changing TEAM_ID in
+// config.h is enough; there is no team name to hardcode here. The panel only has
+// room for about five characters per name, so longer abbreviations are clipped.
+static const char* configuredAbbrev() {
+  static char abbrev[6];  // 5 chars + NUL
+  const Team* t = fantasyTeamById(TEAM_ID);
+  strlcpy(abbrev, (t && t->abbrev[0]) ? t->abbrev : "ME", sizeof(abbrev));
+  return abbrev;
+}
+
 // Layout (on the dark-green board, no border):
 //   rows  2..7   team names       (Org_01, baseline 6, on the green felt)
 //   rows  9..27  black LED panel  (1px pad) with the 3-cell RED scores
@@ -167,29 +178,31 @@ static void drawFootball(unsigned long frame) {
 static void drawScoreboard() {
   const Matchup* m = fantasyMatchupForTeam(TEAM_ID);
   if (!m) {
-    drawCentered(32, 8, C_WHITE, "TAK BYE");
+    char bye[16];
+    snprintf(bye, sizeof(bye), "%s BYE", configuredAbbrev());
+    drawCentered(32, 8, C_WHITE, bye);
     return;
   }
 
-  bool dadHome = (m->homeId == TEAM_ID);
-  const Team* opp = fantasyTeamById(dadHome ? m->awayId : m->homeId);
+  bool mineHome = (m->homeId == TEAM_ID);
+  const Team* opp = fantasyTeamById(mineHome ? m->awayId : m->homeId);
   const char* oppName = opp ? opp->abbrev : "?";
 
   // Black panels (29 wide) shifted one LED right: left x=3..31, right x=34..62.
-  panel->fillRect(3, 9, 29, 19, C_BLACK);    // dad's score, LEFT
+  panel->fillRect(3, 9, 29, 19, C_BLACK);    // your score, LEFT
   panel->fillRect(34, 9, 29, 19, C_BLACK);   // opponent's score, RIGHT
 
-  drawCentered(17, 6, cName(), "TAK", 1);
+  drawCentered(17, 6, cName(), configuredAbbrev(), 1);
   drawCentered(48, 6, cName(), oppName, 1);
 
-  drawScore(17, 10, (long)(dadHome ? m->homeScore : m->awayScore));  // dad, LEFT
-  drawScore(48, 10, (long)(dadHome ? m->awayScore : m->homeScore));  // opponent, RIGHT
+  drawScore(17, 10, (long)(mineHome ? m->homeScore : m->awayScore));  // you, LEFT
+  drawScore(48, 10, (long)(mineHome ? m->awayScore : m->homeScore));  // opponent, RIGHT
 
   if (m->homeWinPct + m->awayWinPct > 0.0f) {
-    float dadWp = dadHome ? m->homeWinPct : m->awayWinPct;
-    if (dadWp < 0.0f) dadWp = 0.0f;
-    if (dadWp > 1.0f) dadWp = 1.0f;
-    drawWinBar(dadWp);
+    float myWp = mineHome ? m->homeWinPct : m->awayWinPct;
+    if (myWp < 0.0f) myWp = 0.0f;
+    if (myWp > 1.0f) myWp = 1.0f;
+    drawWinBar(myWp);
   }
 }
 

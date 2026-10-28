@@ -1,0 +1,9 @@
+# Local per-device configuration (Wi-Fi credentials, league/team ids).
+# Start by copying config.example.h to config.h and filling it in.
+firmware/ff_scoreboard/config.h
+
+# macOS
+.DS_Store
+
+# Arduino IDE build output
+firmware/ff_scoreboard/build/

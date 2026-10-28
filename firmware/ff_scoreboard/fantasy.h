@@ -15,6 +15,10 @@ extern int     g_currentMatchupPeriod;
 // display layer can repaint only when the shown content has actually changed.
 extern int     g_dataGen;
 
+// Current ESPN/NFL season year, derived from the clock (Jan/Feb belong to the
+// previous season). Falls back to the firmware build year if NTP has not synced.
+int fantasySeasonYear();
+
 // Fetch the team list once at boot and cache it. The season's teams are static.
 // Also caches g_currentMatchupPeriod from status.currentMatchupPeriod.
 ErrorState fantasyFetchTeams();

@@ -3,6 +3,57 @@
 #include "http_json.h"
 
 #include <ArduinoJson.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+
+// -----------------------------------------------------------------------------
+// Season year
+// -----------------------------------------------------------------------------
+// ESPN's season parameter is the calendar year the NFL season starts in. Derive
+// it from the clock instead of making the user edit config.h every year.
+// January/February still belong to the previous season (playoffs/Super Bowl).
+//
+// ff_scoreboard.ino syncs the clock via NTP after Wi-Fi joins. If NTP is
+// unavailable, fall back to the year this firmware was compiled so the board
+// can still start.
+static int seasonForDate(int year, int month) {
+  return (month <= 2) ? year - 1 : year;
+}
+
+static int buildSeasonYear() {
+  static int cached = 0;
+  if (cached) return cached;
+
+  static const char* months[] = {
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  };
+  char mon[4] = {0};
+  int day = 1;
+  int year = 2026;  // only used if __DATE__ cannot be parsed
+  int month = 0;
+  if (sscanf(__DATE__, "%3s %d %d", mon, &day, &year) == 3) {
+    for (int i = 0; i < 12; i++) {
+      if (strncmp(mon, months[i], 3) == 0) {
+        month = i + 1;
+        break;
+      }
+    }
+  }
+  cached = month ? seasonForDate(year, month) : year;
+  return cached;
+}
+
+int fantasySeasonYear() {
+  time_t now = time(nullptr);
+  struct tm t;
+  // Anything before late 2023 means the clock has not been set by NTP yet.
+  if (now > 1700000000 && gmtime_r(&now, &t)) {
+    return seasonForDate(t.tm_year + 1900, t.tm_mon + 1);
+  }
+  return buildSeasonYear();
+}
 
 // -----------------------------------------------------------------------------
 // Cached data (see fantasy.h).
@@ -37,14 +88,14 @@ static float scoreOf(JsonVariantConst slot) {
 static void buildMatchupUrl(char* buf, size_t len) {
   snprintf(buf, len,
            "%s/%d/segments/0/leagues/%ld?view=mMatchupScore",
-           FF_API_BASE, SEASON, (long)LEAGUE_ID);
+           FF_API_BASE, fantasySeasonYear(), (long)LEAGUE_ID);
 }
 
 ErrorState fantasyFetchTeams() {
   char url[256];
   snprintf(url, sizeof(url),
            "%s/%d/segments/0/leagues/%ld?view=mTeam",
-           FF_API_BASE, SEASON, (long)LEAGUE_ID);
+           FF_API_BASE, fantasySeasonYear(), (long)LEAGUE_ID);
 
   // Filter: keep only id/abbrev/name per team plus the current period.
   // Assigning through [0] tells ArduinoJson to apply the shape to every array

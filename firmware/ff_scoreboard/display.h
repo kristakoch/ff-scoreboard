@@ -5,15 +5,15 @@
 // Consumption-only: reads the plain structs in types.h owned by fantasy.cpp
 // and renders a single, fixed scoreboard view:
 //
-//   TAK              OPP         <- WHITE team names on TOP, on the dark-green felt
+//   YOU              OPP         <- WHITE team names on TOP, on the dark-green felt
 //   [###]      [###]            <- BLACK LED panels with 3-cell square RED
 //                                  7-seg scores (only lit bars, no outlines)
 //   ooooooooooooooooooooooooooo  <- dotted win-probability bar: GOLD share
-//                                  = dad's ESPN win %, remainder purple/blue
+//                                  = your ESPN win %, remainder purple/blue
 //   solid dark-green background, no border
 //
-// No view rotation: call displayRender() from loop() and it repaints every
-// DISPLAY_BLINK_MS.
+// No view rotation: call displayRender() from loop(). It repaints when the
+// fetched data changes, or animates the loader while waiting for the first poll.
 // -----------------------------------------------------------------------------
 #include <Arduino.h>
 
